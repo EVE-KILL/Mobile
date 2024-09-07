@@ -1,43 +1,41 @@
 <script lang="ts">
     import type { Killmail } from '../types/Killmail';
     import { onMount } from 'svelte';
-    import { goto } from '$app/navigation';
-    import { stompConnection } from '$lib/Stomp.ts';
+    import { formatNumber, convertIskToBillions, convertIskToMillions } from '$lib/Helpers';
     import { fetchKillList } from '$lib/fetchKillList.ts';
-    import { formatNumber } from '$lib/Helpers.ts';
-    import involvedImage from '../images/involved.png';
-    import commentImage from '../images/comment.gif';
+    import { goto } from '$app/navigation';
 
     export let url: string;
     export let title: string = '';
-    export let subscriptionTopic: string = 'all';
-    export let filter: { field: string; value: any } | null = null;
 
     let kills: Killmail[] = [];
     let page: number = 1;
     let loading: boolean = false;
-    let isPaused: boolean = false; // To pause adding new kills when hovering
-    let pauseTimeout: any; // Timeout reference for pausing
-    let queuedKills: Killmail[] = []; // Queue for incoming killmails while paused
+    let longPressMenu = { visible: false, x: 0, y: 0, killmailId: '', victim: null, attacker: null };
+    let pressTimeout: any;
+    const menuWidth = 224; // Menu width is 56 * 4 = 224px
 
-    // Check for page number in the URL when the component is mounted
+    // Coordinates to detect scroll movement
+    let startX: number = 0;
+    let startY: number = 0;
+
     onMount(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const pageParam = urlParams.get('killlistPage');
-        if (pageParam) {
-            page = parseInt(pageParam, 10);
-        }
         loadKills();
-        let topic = '/exchange/killmail_topic_exchange/' + subscriptionTopic;
-        stompConnection(topic, handleIncomingMessage); // Use the dynamic or default topic
+        // Close long press menu if the user starts scrolling or touches elsewhere
+        window.addEventListener('scroll', closeLongPressMenu);
+        window.addEventListener('touchstart', closeLongPressMenu);
     });
+
+    function closeLongPressMenu() {
+        longPressMenu.visible = false;
+    }
 
     async function loadKills() {
         if (loading) return;
         loading = true;
         const newKills: Killmail[] = await fetchKillList(url, page);
-        kills = newKills.slice(0, 100);  // Ensure we only keep the number of kills within the limit
-        updateURL();       // Update the URL with the current page
+        kills = newKills.slice(0, 100); // Limit to 100 killmails
+        updateURL();
         loading = false;
     }
 
@@ -54,74 +52,6 @@
         goto(newUrl.toString(), { replaceState: true });
     }
 
-    function truncateString(str: any, num: number) {
-        let stringifiedStr = String(str);
-        return stringifiedStr.length <= num ? stringifiedStr : stringifiedStr.slice(0, num) + '...';
-    }
-
-    function handleIncomingMessage(message: Killmail) {
-        if (page !== 1) return;
-
-        if (filter && !matchesFilter(message, filter)) {
-            return;
-        }
-
-        if (isPaused) {
-            // Queue the message if paused
-            queuedKills.push(message);
-        } else {
-            // Add the new kill to the top of the list
-            addKillToList(message);
-        }
-    }
-
-    function matchesFilter(killmail: Killmail, filter: { field: string; value: any }): boolean {
-        const keys = filter.field.split('.'); // Split the field into its path components
-        let current: any = killmail;
-
-        // Traverse the object according to the keys path
-        for (const key of keys) {
-            if (Array.isArray(current)) {
-                // If the current field is an array, check if any element matches
-                return current.some((item) => item[key] === filter.value);
-            } else {
-                current = current[key];
-            }
-
-            // If at any point the path is undefined, return false
-            if (current === undefined) {
-                return false;
-            }
-        }
-
-        // Final check to ensure we're comparing the correct value
-        return current === filter.value;
-    }
-
-    function addKillToList(message: Killmail) {
-        // Check if the killmail already exists in the list
-        if (!kills.find(kill => kill.killmail_id === message.killmail_id)) {
-            kills = [message, ...kills];
-        }
-
-        // Keep the list within the max limit by removing the last kill if necessary
-        if (kills.length > 100) {
-            kills.pop();
-        }
-    }
-
-    function pauseAddingKills() {
-        clearTimeout(pauseTimeout);
-        isPaused = true;
-        pauseTimeout = setTimeout(() => {
-            isPaused = false;
-            // Process the queued killmails
-            while (queuedKills.length > 0) {
-                addKillToList(queuedKills.shift()!);
-            }
-        }, 2500);
-    }
-
     function handleClick(event: MouseEvent, killmailId: string) {
         if (event.ctrlKey || event.metaKey || event.button === 1) {
             event.preventDefault();
@@ -130,10 +60,119 @@
             window.location.href = `/kill/${killmailId}`;
         }
     }
+
+    function handleLongPressStart(event: TouchEvent, killmail: Killmail) {
+        startX = event.touches[0].clientX;
+        startY = event.touches[0].clientY;
+
+        pressTimeout = setTimeout(() => {
+            const touch = event.touches[0];
+            const attacker = killmail.attackers.find(attacker => attacker.final_blow);
+
+            // Get the viewport width
+            const viewportWidth = window.innerWidth;
+
+            // Calculate the x position, ensuring it fits within the viewport
+            let xPos = touch.pageX;
+            if (xPos + menuWidth > viewportWidth) {
+                xPos = viewportWidth - menuWidth; // Shift the menu to fit within the viewport
+            }
+
+            longPressMenu = {
+                visible: true,
+                x: xPos,
+                y: touch.pageY,
+                killmailId: killmail.killmail_id,
+                victim: killmail.victim,
+                attacker
+            };
+        }, 500); // Long press duration of 500ms
+    }
+
+    function handleTouchMove(event: TouchEvent) {
+        const touch = event.touches[0];
+        const deltaX = Math.abs(touch.clientX - startX);
+        const deltaY = Math.abs(touch.clientY - startY);
+
+        // Cancel the long press if there's movement (indicating scrolling)
+        if (deltaX > 10 || deltaY > 10) {
+            clearTimeout(pressTimeout);
+        }
+    }
+
+    function handleLongPressEnd() {
+        clearTimeout(pressTimeout);
+    }
+
+    function openInNewWindow(killmailId: string) {
+        window.open(`/kill/${killmailId}`, '_blank');
+        longPressMenu.visible = false;
+    }
+
+    function handleMenuClick(event: MouseEvent | TouchEvent) {
+        event.stopPropagation(); // Prevent click/touch events from reaching underlying elements
+    }
+
+    // Parse kill time and calculate the difference in minutes
+    function getMinutesSinceKill(killTime: string): string {
+        const killDate = new Date(`${killTime}Z`);
+        const now = new Date();
+        const diffInMinutes = Math.floor((now.getTime() - killDate.getTime()) / 60000);
+        return diffInMinutes > 99 ? '>99m' : `${diffInMinutes}m`;
+    }
 </script>
 
 {#if title !== undefined}
     <h1 class="text-white">{title}</h1>
+{/if}
+
+<!-- Long press context menu -->
+{#if longPressMenu.visible}
+    <div
+        class="absolute z-50 bg-gray-800 text-white rounded shadow-lg p-2 w-56"
+        style="top: {longPressMenu.y}px; left: {longPressMenu.x}px;"
+        on:click={handleMenuClick} on:touchstart={handleMenuClick} on:touchend={handleMenuClick}
+    >
+        <button
+            class="block w-full px-4 py-2 text-sm hover:bg-gray-700"
+            on:click={handleMenuClick}
+            on:click={() => openInNewWindow(longPressMenu.killmailId)}
+        >
+            Open Kill in New Window
+        </button>
+
+        <div class="mt-2">
+            <span class="font-bold">Victim</span>
+            <a href={`/character/${longPressMenu.victim.character_id}`} target="_blank" class="block w-full px-4 py-2 text-sm hover:bg-gray-700" on:click={handleMenuClick}>
+                Character
+            </a>
+            <a href={`/corporation/${longPressMenu.victim.corporation_id}`} target="_blank" class="block w-full px-4 py-2 text-sm hover:bg-gray-700" on:click={handleMenuClick}>
+                Corporation
+            </a>
+            {#if longPressMenu.victim.alliance_id}
+                <a href={`/alliance/${longPressMenu.victim.alliance_id}`} target="_blank" class="block w-full px-4 py-2 text-sm hover:bg-gray-700" on:click={handleMenuClick}>
+                    Alliance
+                </a>
+            {/if}
+        </div>
+
+        {#if longPressMenu.attacker}
+            <div class="mt-2">
+                <span class="font-bold">Final Blow</span>
+                <a href={`/character/${longPressMenu.attacker.character_id}`} target="_blank" class="block w-full px-4 py-2 text-sm hover:bg-gray-700" on:click={handleMenuClick}>
+                    Character
+                </a>
+                <a href={`/corporation/${longPressMenu.attacker.corporation_id}`} target="_blank" class="block w-full px-4 py-2 text-sm hover:bg-gray-700" on:click={handleMenuClick}>
+                    Corporation
+                </a>
+                {#if longPressMenu.attacker.alliance_id}
+                    <a href={`/alliance/${longPressMenu.attacker.alliance_id}`} target="_blank" class="block w-full px-4 py-2 text-sm hover:bg-gray-700" on:click={handleMenuClick}>
+                        Alliance
+                    </a>
+                {/if}
+            </div>
+        {/if}
+    </div>
 {/if}
 
 <!-- Pagination Control at the Top -->
@@ -155,80 +194,68 @@
     </button>
 </div>
 
+<!-- Kill List Table -->
 <div class="overflow-x-auto" role="table">
     <table class="table-auto min-w-full bg-semi-transparent bg-gray-800 rounded-lg shadow-lg">
         <thead>
             <tr class="bg-darker text-white uppercase text-xs leading-normal">
                 <th class="px-2 py-1 w-[64px]" scope="col"></th>
-                <th class="px-2 py-1" scope="col">Ship</th>
-                <th class="px-2 py-1 w-[64px]" scope="col"></th>
                 <th class="px-2 py-1" scope="col">Victim</th>
-                <th class="px-2 py-1" scope="col">Final Blow</th>
-                <th class="px-2 py-1" scope="col">Location</th>
             </tr>
         </thead>
 
         <tbody class="text-gray-300 text-sm">
             {#each kills as kill (kill.killmail_id)}
                 <tr
-                    class="border-b border-gray-700 hover:bg-gray-600 transition-colors duration-300 cursor-pointer"
+                    class="relative border-b border-gray-700 hover:bg-gray-600 transition-colors duration-300 cursor-pointer"
                     on:mousedown={(event) => handleClick(event, kill.killmail_id)}
-                    on:mouseover={pauseAddingKills}
-                    on:focus={pauseAddingKills}
+                    on:touchstart={(event) => handleLongPressStart(event, kill)}
+                    on:touchmove={handleTouchMove}
+                    on:touchend={handleLongPressEnd}
                 >
-                    <td class="px-2 py-1">
+                    <!-- Character Image -->
+                    <td class="py-1">
                         <img
-                            src="{kill.victim.ship_image_url}?size=64"
-                            alt="Ship: {kill.victim.ship_name}"
-                            class="w-10 rounded"
-                        />
-                    </td>
-                    <td class="px-2 py-1">
-                        {truncateString(kill.victim.ship_name, 20)}<br />
-                        {#if kill.total_value > 50}
-                            <span class="text-gray-400">{formatNumber(kill.total_value)} ISK</span>
-                        {/if}
-                    </td>
-                    <td class="px-2 py-1">
-                        <img
-                            src="{kill.victim.character_image_url}?size=64"
+                            src="{kill.victim.character_image_url}?size=128"
                             alt="Character: {kill.victim.character_name}"
-                            class="w-10 rounded"
+                            class="w-12 min-w-12 rounded"
                         />
                     </td>
-                    <td class="px-2 py-1">
-                        {kill.victim.character_name}<br />
-                        <span class="text-gray-400">{truncateString(kill.victim.corporation_name, 22)}</span>
-                    </td>
-                    <td class="px-2 py-1">
-                        {#if Array.isArray(kill.attackers)}
-                            {#each kill.attackers as attacker}
-                                {#if attacker.final_blow}
-                                    {#if kill.is_npc}
-                                        {attacker.faction_name}<br />
-                                        <span class="text-gray-400">{truncateString(attacker.ship_group_name, 22)}</span>
-                                    {:else}
-                                        {attacker.character_name}<br />
-                                        <span class="text-gray-400">{truncateString(attacker.corporation_name, 22)}</span>
-                                    {/if}
-                                {/if}
-                            {/each}
-                        {/if}
-                    </td>
-                    <td class="px-2 py-1">
-                        {kill.region_name} / {kill.system_name}<br />
-                        <div class="flex justify-between items-center">
-                            <div class="flex items-center">
-                                <span class="text-gray-400">{kill.attackers.length}</span>
-                                &nbsp;
-                                <img src={involvedImage} alt="{kill.attackers.length} Involved" />
-                                &nbsp;
-                                <span class="text-gray-400">{kill.comment_count || 0}</span>
-                                &nbsp;
-                                <img src={commentImage} alt="{kill.attackers.length} Involved" />
+
+                    <!-- Victim's Character Name, Corporation, Location, and Ship -->
+                    <td class="py-1">
+                        <div class="flex items-center space-x-2">
+                            <div class="flex flex-col items-center">
+                                <!-- Corporation Image (half size) -->
+                                <img
+                                    src="{kill.victim.corporation_image_url}?size=64"
+                                    alt="Corporation: {kill.victim.corporation_name}"
+                                    class="w-6 min-w-6 rounded"
+                                />
+                                <!-- Victim Ship Image -->
+                                <img
+                                    src="{kill.victim.ship_image_url}?size=64"
+                                    alt="Ship: {kill.victim.ship_name}"
+                                    class="w-6 min-w-6 mt-1 rounded"
+                                />
                             </div>
-                            <div class="text-right text-gray-500">{kill.kill_time}</div>
+                            <div>
+                                <span>{kill.victim.character_name}</span><br />
+                                <span class="text-gray-400">{kill.victim.corporation_name}</span><br />
+                                <span class="text-gray-500">{kill.region_name} / {kill.system_name}</span>
+                            </div>
                         </div>
+                    </td>
+
+                    <!-- Total value in ISK (converted to billions or millions) -->
+                    <td class="absolute top-0 right-0 text-gray-400 text-xs text-right px-2 py-1">
+                        {#if kill.total_value >= 1_000_000_000}
+                            <span>{convertIskToBillions(kill.total_value)}</span><br />
+                        {:else}
+                            <span>{convertIskToMillions(kill.total_value)}</span><br />
+                        {/if}
+                        <!-- Time since kill in minutes -->
+                        <span>{getMinutesSinceKill(kill.kill_time)}</span>
                     </td>
                 </tr>
             {/each}
@@ -254,3 +281,21 @@
         Next
     </button>
 </div>
+
+<style>
+    .w-12 {
+        width: 3rem;
+    }
+
+    .w-6 {
+        width: 1.5rem;
+    }
+
+    .min-w-12 {
+        min-width: 3rem;
+    }
+
+    .min-w-6 {
+        min-width: 1.5rem;
+    }
+</style>

@@ -63,27 +63,44 @@
 	{/if}
 </svelte:head>
 
-<div id="content" class="content flex flex-col mx-auto">
-	<div id="inner-content" class="inner-content">
-		<Navbar />
-		<slot />
-	</div>
-</div>
-
 <style>
-	.content {
-		max-width: 90rem;
-		background-color: rgba(21, 21, 21, 0.5);
-		border: 2px solid #252525;
-		padding: 5px;
-		border-radius: 10px;
-	}
+    /* Make the content container responsive */
+    .content {
+        width: 100%;
+        max-width: 90rem; /* Limit for larger screens */
+        background-color: rgba(21, 21, 21, 0.5);
+        border: 2px solid #252525;
+        padding: 5px;
+        border-radius: 10px;
+        overflow-x: hidden; /* Prevent horizontal overflow */
+    }
 
-	#content > #inner-content {
-		display: block;
-		border: 5px solid rgba(0, 0, 0, 0.5);
-		padding: 0px 20px 20px 20px;
-		background: rgba(0, 0, 0, 0.65);
-		margin-bottom: 5px;
-	}
+    /* Inner content should also respect screen size */
+    #content > #inner-content {
+        display: block;
+        border: 5px solid rgba(0, 0, 0, 0.5);
+        padding: 0px 20px 20px 20px;
+        background: rgba(0, 0, 0, 0.65);
+        margin-bottom: 5px;
+        max-width: 100%; /* Prevent overflow on mobile */
+        box-sizing: border-box;
+    }
+
+    /* Apply mobile-first styles */
+    @media (max-width: 640px) {
+        .content {
+            padding: 10px;
+        }
+        #content > #inner-content {
+            padding: 10px; /* Adjust padding for smaller screens */
+        }
+    }
 </style>
+
+<!-- Structure remains the same -->
+<div id="content" class="content flex flex-col mx-auto">
+    <div id="inner-content" class="inner-content">
+        <Navbar />
+        <slot />
+    </div>
+</div>
