@@ -12,9 +12,10 @@
     }
 </script>
 
-<div>
-    <div class="w-full flex flex-col items-start rounded-lg shadow-lg custom-space-x mt-4">
-        <div class="flex justify-start items-start">
+<!-- Main Container -->
+<div class="info-container">
+    <div class="w-full flex flex-col rounded-lg shadow-lg custom-space-x mt-4">
+        <div class="flex justify-center">
             <!-- Character and Corporation Info -->
             <a href={`/character/${killmail.victim.character_id}/`} class="mr-2">
                 <img
@@ -136,3 +137,20 @@
         </tbody>
     </table>
 </div>
+
+<style>
+    .info-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center; /* Center all content within the container */
+    }
+
+    .table-auto th {
+        text-align: right;
+    }
+
+    .table-auto td {
+        text-align: left;
+    }
+</style>
