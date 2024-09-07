@@ -14,7 +14,7 @@
     let loading: boolean = false;
     let longPressMenu = { visible: false, x: 0, y: 0, killmailId: '', victim: null, attacker: null };
     let pressTimeout: any;
-    const menuWidth = 250; // Menu width is 56 * 4 = 224px
+    const menuWidth = 250; // Menu width is 250px
     const menuHeight = 350; // Estimated height of the long-press menu
 
     // Coordinates to detect scroll movement
@@ -76,19 +76,19 @@
             const viewportHeight = window.innerHeight;
 
             // Calculate the x position, ensuring it fits within the viewport (left and right)
-            let xPos = touch.pageX;
-            if (xPos + menuWidth > viewportWidth) {
-                xPos = viewportWidth - menuWidth; // Shift the menu to fit within the viewport
-            } else if (xPos < 0) {
-                xPos = 0; // Ensure it doesn't overflow to the left
+            let xPos = touch.pageX + window.scrollX;
+            if (xPos + menuWidth > viewportWidth + window.scrollX) {
+                xPos = viewportWidth + window.scrollX - menuWidth; // Shift the menu to fit within the viewport
+            } else if (xPos < window.scrollX) {
+                xPos = window.scrollX; // Ensure it doesn't overflow to the left
             }
 
             // Calculate the y position, ensuring it fits within the viewport (top and bottom)
-            let yPos = touch.pageY;
-            if (yPos + menuHeight > viewportHeight) {
-                yPos = viewportHeight - menuHeight; // Shift the menu upwards if it overflows bottom
-            } else if (yPos < 0) {
-                yPos = 0; // Ensure it doesn't overflow off the top
+            let yPos = touch.pageY + window.scrollY;
+            if (yPos + menuHeight > viewportHeight + window.scrollY) {
+                yPos = viewportHeight + window.scrollY - menuHeight; // Shift the menu upwards if it overflows bottom
+            } else if (yPos < window.scrollY) {
+                yPos = window.scrollY; // Ensure it doesn't overflow off the top
             }
 
             longPressMenu = {
