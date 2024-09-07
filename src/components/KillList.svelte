@@ -136,7 +136,6 @@
     >
         <button
             class="block w-full px-4 py-2 text-sm hover:bg-gray-700"
-            on:click={handleMenuClick}
             on:click={() => openInNewWindow(longPressMenu.killmailId)}
         >
             Open Kill in New Window
@@ -224,7 +223,7 @@
                     </td>
 
                     <!-- Victim's Character Name, Corporation, Location, and Ship -->
-                    <td class="py-1">
+                    <td class="py-1 relative">
                         <div class="flex items-center space-x-2">
                             <div class="flex flex-col items-center">
                                 <!-- Corporation Image (half size) -->
@@ -246,17 +245,16 @@
                                 <span class="text-gray-500">{kill.region_name} / {kill.system_name}</span>
                             </div>
                         </div>
-                    </td>
 
-                    <!-- Total value in ISK (converted to billions or millions) -->
-                    <td class="absolute top-0 right-0 text-gray-400 text-xs text-right px-2 py-1">
-                        {#if kill.total_value >= 1_000_000_000}
-                            <span>{convertIskToBillions(kill.total_value)}</span><br />
-                        {:else}
-                            <span>{convertIskToMillions(kill.total_value)}</span><br />
-                        {/if}
-                        <!-- Time since kill in minutes -->
-                        <span>{getMinutesSinceKill(kill.kill_time)}</span>
+                        <!-- Total value in ISK and time since kill (positioned absolutely within the relative td) -->
+                        <div class="absolute top-0 right-0 text-gray-400 text-xs text-right px-2 py-1">
+                            {#if kill.total_value >= 1_000_000_000}
+                                <span>{convertIskToBillions(kill.total_value)}</span><br />
+                            {:else}
+                                <span>{convertIskToMillions(kill.total_value)}</span><br />
+                            {/if}
+                            <span>{getMinutesSinceKill(kill.kill_time)}</span>
+                        </div>
                     </td>
                 </tr>
             {/each}
@@ -298,5 +296,9 @@
 
     .min-w-6 {
         min-width: 1.5rem;
+    }
+
+    .relative {
+        position: relative;
     }
 </style>
