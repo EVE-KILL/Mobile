@@ -13,7 +13,8 @@
     let loading: boolean = false;
     let longPressMenu = { visible: false, x: 0, y: 0, killmailId: '', victim: null, attacker: null };
     let pressTimeout: any;
-    const menuWidth = 224; // Menu width is 56 * 4 = 224px
+    // Menu width is 56 * 4 = 224px
+    const menuWidth = 224;
 
     // Coordinates to detect scroll movement
     let startX: number = 0;
@@ -34,7 +35,7 @@
         if (loading) return;
         loading = true;
         const newKills: Killmail[] = await fetchKillList(url, page);
-        kills = newKills.slice(0, 100); // Limit to 100 killmails
+        kills = newKills.slice(0, 100);
         updateURL();
         loading = false;
     }
@@ -75,7 +76,7 @@
             // Calculate the x position, ensuring it fits within the viewport
             let xPos = touch.pageX;
             if (xPos + menuWidth > viewportWidth) {
-                xPos = viewportWidth - menuWidth; // Shift the menu to fit within the viewport
+                xPos = viewportWidth - menuWidth;
             }
 
             longPressMenu = {
@@ -86,7 +87,7 @@
                 victim: killmail.victim,
                 attacker
             };
-        }, 500); // Long press duration of 500ms
+        }, 250);
     }
 
     function handleTouchMove(event: TouchEvent) {
