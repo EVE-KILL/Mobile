@@ -16,7 +16,7 @@ jobs:
           repo_name="Deployment"
 
           # Define the event type
-          event_type="update-frontend"
+          event_type="update-mobile"
 
           # Define the branch we are pushing to
           branch="main"
@@ -35,7 +35,7 @@ jobs:
             "event_type": "'$event_type'",
             "client_payload":
               {
-                "submodule": "frontend",
+                "submodule": "mobile",
                 "environment": "'$branch'",
                 "commit": "'$commit_hash'"
               }
