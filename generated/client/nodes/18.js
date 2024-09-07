@@ -1,0 +1,1 @@
+export { default as component } from "../../../../src/routes/kill/[id=number]/+page.svelte";

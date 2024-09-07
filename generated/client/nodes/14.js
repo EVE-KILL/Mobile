@@ -1,0 +1,1 @@
+export { default as component } from "../../../../src/routes/alliance/[id=number]/+page.svelte";

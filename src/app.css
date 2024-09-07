@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+	height: 100%;
+	margin: 0;
+	margin-top: 10px;
+	font-family: 'Shentox', sans-serif;
+	font-size: 1.1em;
+}
+
+html {
+	background:
+        /* top, transparent black, faked with gradient */ linear-gradient(
+		rgba(0, 0, 0, 0.5),
+		rgba(0, 0, 0, 0.5)
+	);
+}
+
+html {
+	background-color: black;
+	text-shadow: 1px 1px 1px #0e0e0e;
+}
+
+/* Vignette effect */
+html::before {
+	content: '';
+	position: fixed;
+	inset: 0;
+	background: radial-gradient(circle, transparent, black 90%);
+	pointer-events: none;
+	z-index: -1;
+}
+
+body {
+	display: flex;
+	flex-direction: column;
+	min-height: 100%;
+}
