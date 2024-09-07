@@ -7,14 +7,15 @@
 
     export let url: string;
     export let title: string = '';
+    export let subscriptionTopic: string = 'all';
 
     let kills: Killmail[] = [];
     let page: number = 1;
     let loading: boolean = false;
     let longPressMenu = { visible: false, x: 0, y: 0, killmailId: '', victim: null, attacker: null };
     let pressTimeout: any;
-    // Menu width is 56 * 4 = 224px
-    const menuWidth = 224;
+    const menuWidth = 250; // Menu width is 56 * 4 = 224px
+    const menuHeight = 350; // Estimated height of the long-press menu
 
     // Coordinates to detect scroll movement
     let startX: number = 0;
@@ -35,7 +36,7 @@
         if (loading) return;
         loading = true;
         const newKills: Killmail[] = await fetchKillList(url, page);
-        kills = newKills.slice(0, 100);
+        kills = newKills.slice(0, 100); // Limit to 100 killmails
         updateURL();
         loading = false;
     }
@@ -70,19 +71,30 @@
             const touch = event.touches[0];
             const attacker = killmail.attackers.find(attacker => attacker.final_blow);
 
-            // Get the viewport width
+            // Get the viewport width and height
             const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
 
-            // Calculate the x position, ensuring it fits within the viewport
+            // Calculate the x position, ensuring it fits within the viewport (left and right)
             let xPos = touch.pageX;
             if (xPos + menuWidth > viewportWidth) {
-                xPos = viewportWidth - menuWidth;
+                xPos = viewportWidth - menuWidth; // Shift the menu to fit within the viewport
+            } else if (xPos < 0) {
+                xPos = 0; // Ensure it doesn't overflow to the left
+            }
+
+            // Calculate the y position, ensuring it fits within the viewport (top and bottom)
+            let yPos = touch.pageY;
+            if (yPos + menuHeight > viewportHeight) {
+                yPos = viewportHeight - menuHeight; // Shift the menu upwards if it overflows bottom
+            } else if (yPos < 0) {
+                yPos = 0; // Ensure it doesn't overflow off the top
             }
 
             longPressMenu = {
                 visible: true,
                 x: xPos,
-                y: touch.pageY,
+                y: yPos,
                 killmailId: killmail.killmail_id,
                 victim: killmail.victim,
                 attacker
