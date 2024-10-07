@@ -59,7 +59,7 @@
 		"@stomp/stompjs": "^7.0.0",
 		"@svelte-plugins/datepicker": "^1.0.9",
 		"carta-md": "^4.4.5",
-		"cookie": "^0.6.0",
+		"cookie": "^0.7.2",
 		"cors": "^2.8.5",
 		"date-picker-svelte": "^2.13.0",
 		"devalue": "^5.0.0",
